@@ -115,4 +115,8 @@ if ($LASTEXITCODE -ne 0) {
   throw 'No se pudo completar el arranque. Revisa la conexion Atlas y los permisos de red del equipo.'
 }
 & docker compose ps
-Write-Host 'Backend iniciado con Atlas original. Comprueba los endpoints con scripts/probar-duoc.ps1.'
+& (Join-Path $PSScriptRoot 'probar-duoc.ps1')
+if ($LASTEXITCODE -ne 0) {
+  throw 'Uno o mas endpoints fallaron. Revisa el acceso desde Duoc a MongoDB Atlas.'
+}
+Write-Host 'Backend y cuatro endpoints REST comprobados con Atlas original.'
