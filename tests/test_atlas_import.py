@@ -37,7 +37,7 @@ with TemporaryDirectory() as directory:
         for name in names:
             uri = parsed["services"][f"{name}-service"]["environment"]["SPRING_MONGODB_URI"]
             if uri != f"mongodb+srv://fixture$ci-only@atlas.example/segurosbpo_{name}":
-                raise AssertionError(f"Docker Compose altero el URI del servicio {name}")
+                raise AssertionError(f"CI fixture {name}: valor recibido {uri!r}")
         print("Importador Atlas y Docker Compose: cuatro URI conservadas, incluido el caracter $")
     finally:
         dotenv.unlink(missing_ok=True)
