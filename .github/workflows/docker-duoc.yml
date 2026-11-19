@@ -41,9 +41,9 @@ jobs:
             roles-service usuarios-service catalogos-service siniestros-service; then
             echo 'ERROR: URI Atlas encontrada en el código fuente'; exit 1
           fi
-      - name: Configurar MongoDB local de CI
-        run: |
-          printf 'MONGO_USER=segurosbpo\nMONGO_PASS=TEST0123456789ABCDEF1234567890\n' > .env
+      - name: Verificar arranque sin configuracion .env
+        shell: bash
+        run: test ! -f .env
       - name: Validar configuración Compose
         run: docker compose config --quiet
       - name: Construir e iniciar los cinco contenedores
