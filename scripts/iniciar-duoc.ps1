@@ -77,7 +77,6 @@ if (-not (Test-AtlasConfiguration $envfile)) {
     }
   }
   $candidates = @($candidates | Sort-Object LastWriteTime -Descending -Unique)
-  $found = $false
   if (-not $found) { foreach ($candidate in $candidates) {
     try {
       $values = Read-AtlasFromZip $candidate.FullName
