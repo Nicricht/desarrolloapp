@@ -45,6 +45,8 @@ jobs:
              roles-service usuarios-service catalogos-service siniestros-service; then
             echo 'ERROR: URI Atlas con credenciales embebidas en el codigo'; exit 1
           fi
+      - name: Probar importador PowerShell Atlas con ZIP de prueba
+        run: python3 tests/test_atlas_import.py
       - name: Inyectar URI descartable de CI (no Atlas)
         shell: bash
         run: |
