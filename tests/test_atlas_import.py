@@ -36,8 +36,10 @@ with TemporaryDirectory() as directory:
         parsed = json.loads(config.stdout)
         for name in names:
             uri = parsed["services"][f"{name}-service"]["environment"]["SPRING_MONGODB_URI"]
-            if uri != f"mongodb+srv://fixture$ci-only@atlas.example/segurosbpo_{name}":
-                raise AssertionError(f"CI fixture {name}: valor recibido {uri!r}")
+            # docker compose config re-escapa el signo $ como $ al serializar JSON.
+            # Los contenedores lo reciben como un unico signo $.
+            if uri.replace("$", "$") != f"mongodb+srv://fixture$ci-only@atlas.example/segurosbpo_{name}":
+                raise AssertionError(f"CI fixture {name}: representacion inesperada {uri!r}")
         print("Importador Atlas y Docker Compose: cuatro URI conservadas, incluido el caracter $")
     finally:
         dotenv.unlink(missing_ok=True)
