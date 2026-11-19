@@ -25,10 +25,12 @@ No necesitas instalar Java, Maven ni MongoDB en Windows.
 En la raíz del repositorio, ejecuta:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\iniciar-duoc.ps1
+docker compose up --build -d --wait
 ```
 
-El script genera `.env` con una contraseña MongoDB local aleatoria, valida Compose, compila y arranca los cinco contenedores. El archivo `.env` está excluido de Git.
+Sin crear `.env`, Compose inicia los cinco contenedores con credenciales predeterminadas **solo para demostración local**. MongoDB no publica su puerto y las cuatro API escuchan únicamente en `127.0.0.1` del computador. No uses esta configuración por defecto en un servidor o red pública. Si necesitas contraseñas distintas, copia `.env.example` a `.env` y reemplaza su contraseña de ejemplo por una fuerte; `.env` está excluido de Git.
+
+El script alternativo `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\iniciar-duoc.ps1` también funciona sin crear `.env` y comprueba que Docker Engine esté activo.
 
 Comprobar las cuatro API REST:
 
@@ -67,7 +69,7 @@ Los volúmenes `mongodb-data`, `avatares-data` y `evidencias-data` son persisten
 
 ## Seguridad y límites
 
-- La conexión Atlas de los antiguos `application.properties` se ha eliminado de los cuatro servicios visibles. La conexión de Docker usa la variable `SPRING_MONGODB_URI` con un servidor MongoDB local y una contraseña aleatoria.
+- La conexión Atlas de los antiguos `application.properties` se ha eliminado de los cuatro servicios visibles. La conexión de Docker usa la variable `SPRING_MONGODB_URI` con un servidor MongoDB local. Por defecto emplea credenciales conocidas de demostración; puedes anularlas mediante `.env`.
 - El ZIP antiguo contiene una credencial que **debe revocarse por su propietario**; aunque lo retiramos de la rama visible, **sigue existiendo en versiones antiguas del historial Git**. Ver el Issue #2.
 - Los puertos se publican únicamente en `127.0.0.1`. La aplicación es una demostración académica y no incorpora seguridad de producción.
 - El workflow `docker-duoc.yml` realiza build y smoke REST. Una prueba verde no sustituye validar todos los flujos de negocio, permisos, persistencia y la integración con Android.

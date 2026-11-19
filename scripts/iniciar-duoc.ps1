@@ -6,14 +6,9 @@ if (-not (Get-Command docker -ErrorAction SilentlyContinue)) { throw 'Instala Do
 if ($LASTEXITCODE -ne 0) { throw 'Docker Engine no responde. Abre Docker Desktop, modo Linux.' }
 & docker compose version | Out-Null
 if ($LASTEXITCODE -ne 0) { throw 'Necesitas Docker Compose v2.' }
-$envfile = Join-Path $root '.env'
-if (-not (Test-Path -LiteralPath $envfile)) {
-  $bytes = New-Object byte[] 24
-  $random = [System.Security.Cryptography.RandomNumberGenerator]::Create()
-  try { $random.GetBytes($bytes) } finally { $random.Dispose() }
-  $password = [BitConverter]::ToString($bytes).Replace('-', '')
-  [System.IO.File]::WriteAllText($envfile, "MONGO_USER=segurosbpo`nMONGO_PASS=$password`n", [System.Text.Encoding]::ASCII)
-  Write-Host 'Archivo .env local creado con contraseña aleatoria. No se publicará en GitHub.'
+if (-not (Test-Path -LiteralPath (Join-Path $root '.env'))) {
+  Write-Host 'Modo de demostracion local: Compose utiliza credenciales de desarrollo predeterminadas.'
+  Write-Host 'Para personalizarlas, crea .env antes de iniciar el proyecto.'
 }
 & docker compose config --quiet
 if ($LASTEXITCODE -ne 0) { throw 'compose.yaml o .env no son válidos.' }

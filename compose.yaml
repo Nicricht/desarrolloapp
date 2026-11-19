@@ -5,8 +5,8 @@ services:
     image: mongo:7.0
     restart: unless-stopped
     environment:
-      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER:?Usa scripts/iniciar-duoc.ps1 para generar .env}
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASS:?Usa scripts/iniciar-duoc.ps1 para generar .env}
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER:-segurosbpo_demo}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASS:-solo_para_demo_local_2026}
     volumes:
       - mongodb-data:/data/db
     healthcheck:
@@ -26,7 +26,7 @@ services:
     ports:
       - "127.0.0.1:8081:8081"
     environment:
-      SPRING_MONGODB_URI: "mongodb://${MONGO_USER}:${MONGO_PASS}@mongodb:27017/segurosbpo_roles?authSource=admin"
+      SPRING_MONGODB_URI: "mongodb://${MONGO_USER:-segurosbpo_demo}:${MONGO_PASS:-solo_para_demo_local_2026}@mongodb:27017/segurosbpo_roles?authSource=admin"
     depends_on:
       mongodb:
         condition: service_healthy
@@ -47,7 +47,7 @@ services:
     ports:
       - "127.0.0.1:8083:8083"
     environment:
-      SPRING_MONGODB_URI: "mongodb://${MONGO_USER}:${MONGO_PASS}@mongodb:27017/segurosbpo_catalogos?authSource=admin"
+      SPRING_MONGODB_URI: "mongodb://${MONGO_USER:-segurosbpo_demo}:${MONGO_PASS:-solo_para_demo_local_2026}@mongodb:27017/segurosbpo_catalogos?authSource=admin"
     depends_on:
       mongodb:
         condition: service_healthy
@@ -68,7 +68,7 @@ services:
     ports:
       - "127.0.0.1:8082:8082"
     environment:
-      SPRING_MONGODB_URI: "mongodb://${MONGO_USER}:${MONGO_PASS}@mongodb:27017/segurosbpo_usuarios?authSource=admin"
+      SPRING_MONGODB_URI: "mongodb://${MONGO_USER:-segurosbpo_demo}:${MONGO_PASS:-solo_para_demo_local_2026}@mongodb:27017/segurosbpo_usuarios?authSource=admin"
       ROLES_SERVICE_URL: "http://roles-service:8081"
     depends_on:
       mongodb:
@@ -94,7 +94,7 @@ services:
     ports:
       - "127.0.0.1:8084:8084"
     environment:
-      SPRING_MONGODB_URI: "mongodb://${MONGO_USER}:${MONGO_PASS}@mongodb:27017/segurosbpo_siniestros?authSource=admin"
+      SPRING_MONGODB_URI: "mongodb://${MONGO_USER:-segurosbpo_demo}:${MONGO_PASS:-solo_para_demo_local_2026}@mongodb:27017/segurosbpo_siniestros?authSource=admin"
       CATALOGOS_SERVICE_URL: "http://catalogos-service:8083"
       USUARIOS_SERVICE_URL: "http://usuarios-service:8082"
     depends_on:

@@ -16,9 +16,13 @@ Los cuatro servicios están descomprimidos y versionados como código fuente. Do
 ```powershell
 git clone https://github.com/Nicricht/desarrolloapp.git
 cd desarrolloapp
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\iniciar-duoc.ps1
+docker compose up --build -d --wait
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\probar-duoc.ps1
 ```
+
+No necesitas crear un archivo `.env` para la demostracion local: Compose utiliza una cuenta MongoDB de prueba que solo funciona dentro de la red Docker. Si vas a guardar información importante o ejecutar el sistema fuera de tu equipo, define credenciales propias en `.env` y revisa la seguridad.
+
+También puedes iniciar con `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\iniciar-duoc.ps1`.
 
 Para detenerlos: `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\detener-duoc.ps1`.
 
