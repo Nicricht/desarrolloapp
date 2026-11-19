@@ -1,21 +1,8 @@
 name: seguros-bpo-duoc
 
+# Produccion academica/demo: el backend se conecta al Atlas ORIGINAL.
+# Las cuatro URI se leen de .env local, nunca de codigo versionado.
 services:
-  mongodb:
-    image: mongo:7.0
-    restart: unless-stopped
-    environment:
-      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER:-segurosbpo_demo}
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASS:-solo_para_demo_local_2026}
-    volumes:
-      - mongodb-data:/data/db
-    healthcheck:
-      test: ["CMD-SHELL", "mongosh --quiet -u \"$$MONGO_INITDB_ROOT_USERNAME\" -p \"$$MONGO_INITDB_ROOT_PASSWORD\" --authenticationDatabase admin --eval 'db.adminCommand({ping:1}).ok' | grep -q 1"]
-      interval: 10s
-      timeout: 8s
-      retries: 25
-      start_period: 30s
-
   roles-service:
     build:
       context: .
@@ -26,10 +13,7 @@ services:
     ports:
       - "127.0.0.1:8081:8081"
     environment:
-      SPRING_MONGODB_URI: "mongodb://${MONGO_USER:-segurosbpo_demo}:${MONGO_PASS:-solo_para_demo_local_2026}@mongodb:27017/segurosbpo_roles?authSource=admin"
-    depends_on:
-      mongodb:
-        condition: service_healthy
+      SPRING_MONGODB_URI: ${ATLAS_ROLES_URI:?Falta Atlas. Ejecuta scripts/iniciar-duoc.ps1 con el ZIP original}
     healthcheck:
       test: ["CMD", "bash", "-c", "echo > /dev/tcp/127.0.0.1/8081"]
       interval: 10s
@@ -47,10 +31,7 @@ services:
     ports:
       - "127.0.0.1:8083:8083"
     environment:
-      SPRING_MONGODB_URI: "mongodb://${MONGO_USER:-segurosbpo_demo}:${MONGO_PASS:-solo_para_demo_local_2026}@mongodb:27017/segurosbpo_catalogos?authSource=admin"
-    depends_on:
-      mongodb:
-        condition: service_healthy
+      SPRING_MONGODB_URI: ${ATLAS_CATALOGOS_URI:?Falta Atlas. Ejecuta scripts/iniciar-duoc.ps1 con el ZIP original}
     healthcheck:
       test: ["CMD", "bash", "-c", "echo > /dev/tcp/127.0.0.1/8083"]
       interval: 10s
@@ -68,11 +49,9 @@ services:
     ports:
       - "127.0.0.1:8082:8082"
     environment:
-      SPRING_MONGODB_URI: "mongodb://${MONGO_USER:-segurosbpo_demo}:${MONGO_PASS:-solo_para_demo_local_2026}@mongodb:27017/segurosbpo_usuarios?authSource=admin"
-      ROLES_SERVICE_URL: "http://roles-service:8081"
+      SPRING_MONGODB_URI: ${ATLAS_USUARIOS_URI:?Falta Atlas. Ejecuta scripts/iniciar-duoc.ps1 con el ZIP original}
+      ROLES_SERVICE_URL: http://roles-service:8081
     depends_on:
-      mongodb:
-        condition: service_healthy
       roles-service:
         condition: service_healthy
     volumes:
@@ -94,12 +73,10 @@ services:
     ports:
       - "127.0.0.1:8084:8084"
     environment:
-      SPRING_MONGODB_URI: "mongodb://${MONGO_USER:-segurosbpo_demo}:${MONGO_PASS:-solo_para_demo_local_2026}@mongodb:27017/segurosbpo_siniestros?authSource=admin"
-      CATALOGOS_SERVICE_URL: "http://catalogos-service:8083"
-      USUARIOS_SERVICE_URL: "http://usuarios-service:8082"
+      SPRING_MONGODB_URI: ${ATLAS_SINIESTROS_URI:?Falta Atlas. Ejecuta scripts/iniciar-duoc.ps1 con el ZIP original}
+      CATALOGOS_SERVICE_URL: http://catalogos-service:8083
+      USUARIOS_SERVICE_URL: http://usuarios-service:8082
     depends_on:
-      mongodb:
-        condition: service_healthy
       catalogos-service:
         condition: service_healthy
       usuarios-service:
@@ -114,6 +91,5 @@ services:
       start_period: 40s
 
 volumes:
-  mongodb-data:
   avatares-data:
   evidencias-data:

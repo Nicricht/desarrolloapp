@@ -1,4 +1,4 @@
-name: Docker Duoc - cuatro microservicios
+name: Docker Duoc - integracion cuatro microservicios
 
 on:
   push:
@@ -9,6 +9,8 @@ on:
       - 'siniestros-service/**'
       - 'docker/**'
       - 'compose.yaml'
+      - 'compose.ci.yaml'
+      - 'scripts/**'
       - '.github/workflows/docker-duoc.yml'
   pull_request:
     paths:
@@ -18,6 +20,8 @@ on:
       - 'siniestros-service/**'
       - 'docker/**'
       - 'compose.yaml'
+      - 'compose.ci.yaml'
+      - 'scripts/**'
       - '.github/workflows/docker-duoc.yml'
 
 permissions:
@@ -29,7 +33,7 @@ jobs:
     timeout-minutes: 55
     steps:
       - uses: actions/checkout@v4
-      - name: Comprobar código fuente y ausencia de URI Atlas
+      - name: Comprobar servicios y ausencia de credenciales Atlas versionadas
         shell: bash
         run: |
           set -euo pipefail
@@ -37,30 +41,45 @@ jobs:
             test -f "$service/pom.xml"
             test -d "$service/src/main/java"
           done
-          if grep -R -q -E 'mongodb[+]srv://|abaylas_db_user' \
-            roles-service usuarios-service catalogos-service siniestros-service; then
-            echo 'ERROR: URI Atlas encontrada en el código fuente'; exit 1
+          if grep -R -q -E 'mongodb[+]srv://[^[:space:]]+@' \
+             roles-service usuarios-service catalogos-service siniestros-service; then
+            echo 'ERROR: URI Atlas con credenciales embebidas en el codigo'; exit 1
           fi
-      - name: Verificar arranque sin configuracion .env
+      - name: Probar importador PowerShell Atlas con ZIP de prueba
+        run: python3 tests/test_atlas_import.py
+      - name: Inyectar URI descartable de CI (no Atlas)
         shell: bash
-        run: test ! -f .env
-      - name: Validar configuración Compose
-        run: docker compose config --quiet
-      - name: Construir e iniciar los cinco contenedores
-        run: docker compose up --build -d --wait --wait-timeout 420
-      - name: Verificar las cuatro API REST
+        run: |
+          cat > .env <<'EOF'
+          ATLAS_ROLES_URI=mongodb://ci:ci-password-only@mongodb:27017/segurosbpo_roles?authSource=admin
+          ATLAS_USUARIOS_URI=mongodb://ci:ci-password-only@mongodb:27017/segurosbpo_usuarios?authSource=admin
+          ATLAS_CATALOGOS_URI=mongodb://ci:ci-password-only@mongodb:27017/segurosbpo_catalogos?authSource=admin
+          ATLAS_SINIESTROS_URI=mongodb://ci:ci-password-only@mongodb:27017/segurosbpo_siniestros?authSource=admin
+          EOF
+      - name: Verificar que Compose de Duoc no levanta MongoDB
         shell: bash
         run: |
           set -euo pipefail
-          curl --fail --show-error --silent http://127.0.0.1:8081/api/roles >/dev/null
-          curl --fail --show-error --silent http://127.0.0.1:8082/api/usuarios >/dev/null
-          curl --fail --show-error --silent http://127.0.0.1:8083/api/companias >/dev/null
-          curl --fail --show-error --silent 'http://127.0.0.1:8084/api/siniestros?sinAsignar=true' >/dev/null
-      - name: Información de diagnóstico si falla
+          docker compose -f compose.yaml config --services | tee /tmp/services.txt
+          ! grep -qx mongodb /tmp/services.txt
+          test "$(wc -l < /tmp/services.txt)" -eq 4
+      - name: Validar configuracion de CI
+        run: docker compose -f compose.yaml -f compose.ci.yaml config --quiet
+      - name: Construir e iniciar cinco contenedores solo para pruebas CI
+        run: docker compose -f compose.yaml -f compose.ci.yaml up --build -d --wait --wait-timeout 420
+      - name: Verificar cuatro APIs y dependencias
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsS http://127.0.0.1:8081/api/roles >/dev/null
+          curl -fsS http://127.0.0.1:8082/api/usuarios >/dev/null
+          curl -fsS http://127.0.0.1:8083/api/companias >/dev/null
+          curl -fsS 'http://127.0.0.1:8084/api/siniestros?sinAsignar=true' >/dev/null
+      - name: Diagnostico si falla
         if: failure()
         run: |
-          docker compose ps || true
-          docker compose logs --tail=120 || true
-      - name: Detener contenedores
+          docker compose -f compose.yaml -f compose.ci.yaml ps || true
+          docker compose -f compose.yaml -f compose.ci.yaml logs --tail=120 || true
+      - name: Finalizar contenedores
         if: always()
-        run: docker compose down --remove-orphans || true
+        run: docker compose -f compose.yaml -f compose.ci.yaml down --remove-orphans || true

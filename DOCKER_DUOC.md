@@ -1,75 +1,59 @@
-# Seguros BPO: ejecutar los cuatro microservicios en computadores de Duoc
+# Guía Docker para computadores Duoc
 
-**Código fuente visible en GitHub**: cada microservicio tiene su propia carpeta, con Java, `pom.xml`, configuración y pruebas.
+La configuración principal del backend está en `compose.yaml` y utiliza **Atlas original** para las bases `segurosbpo_roles`, `segurosbpo_usuarios`, `segurosbpo_catalogos` y `segurosbpo_siniestros`.
 
-| Carpeta | Función | Puerto |
-| --- | --- | --- |
-| `roles-service/` | Roles | 8081 |
-| `usuarios-service/` | Usuarios, login y avatares | 8082 |
-| `catalogos-service/` | Compañías y tipos de siniestro | 8083 |
-| `siniestros-service/` | Siniestros, gestiones y evidencias | 8084 |
-
-`docker/Dockerfile` compila cada carpeta directamente, usando `SERVICE` para seleccionar el módulo; `compose.yaml` crea los cuatro servicios, más MongoDB 7 local. No hay que descargar ni extraer un ZIP dentro de Docker.
-
-## Requisitos
-
-- Docker Desktop con motor Linux iniciado y Docker Compose v2.
-- Permisos para ejecutar Docker Desktop / WSL2 en el equipo de Duoc.
-- Internet la primera vez para descargar las imágenes y las dependencias de Maven.
-- Puertos locales 8081–8084 libres.
-
-No necesitas instalar Java, Maven ni MongoDB en Windows.
-
-## Arrancar en PowerShell
-
-En la raíz del repositorio, ejecuta:
+## Primer arranque
 
 ```powershell
-docker compose up --build -d --wait
+git clone https://github.com/Nicricht/desarrolloapp.git
+cd desarrolloapp
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\iniciar-duoc.ps1
 ```
 
-Sin crear `.env`, Compose inicia los cinco contenedores con credenciales predeterminadas **solo para demostración local**. MongoDB no publica su puerto y las cuatro API escuchan únicamente en `127.0.0.1` del computador. No uses esta configuración por defecto en un servidor o red pública. Si necesitas contraseñas distintas, copia `.env.example` a `.env` y reemplaza su contraseña de ejemplo por una fuerte; `.env` está excluido de Git.
+Guarda el ZIP **original del backend** en Descargas; el script importa las cuatro URI Atlas al archivo local `.env` sin cambiar claves ni bases. Si el ZIP no está en Descargas, te pide su ruta. No subas ese ZIP al repositorio.
 
-El script alternativo `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\iniciar-duoc.ps1` también funciona sin crear `.env` y comprueba que Docker Engine esté activo.
-
-Comprobar las cuatro API REST:
+Luego ejecuta las pruebas de las cuatro API:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\probar-duoc.ps1
 ```
 
-Detener sin perder las bases de datos ni los archivos adjuntos:
+## Arranques posteriores
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\detener-duoc.ps1
+docker compose up --build -d --wait
 ```
 
-## URLs de pruebas
+`docker compose down` detiene los servicios sin borrar el almacenamiento de avatares y evidencias. MongoDB Atlas permanece ajeno a la operación de Docker Compose.
 
-- Roles: http://localhost:8081/api/roles
-- Usuarios: http://localhost:8082/api/usuarios
-- Catálogos: http://localhost:8083/api/companias
-- Siniestros: http://localhost:8084/api/siniestros?sinAsignar=true
+## Qué hay y qué no hay
 
-La aplicación Android todavía requiere adaptar su contrato Retrofit para este backend. En un emulador Android, `10.0.2.2` representa el host, pero las rutas también deben coincidir con las implementadas aquí.
+| Componente | Puerto | Base de datos |
+|---|---|---|
+| roles-service | 8081 | Atlas: segurosbpo_roles |
+| usuarios-service | 8082 | Atlas: segurosbpo_usuarios |
+| catalogos-service | 8083 | Atlas: segurosbpo_catalogos |
+| siniestros-service | 8084 | Atlas: segurosbpo_siniestros |
 
-## Diagnóstico
+- **No hay contenedor MongoDB en el Compose principal**.
+- MongoDB local solo existe en `compose.ci.yaml` para los tests de GitHub Actions. No debe utilizarse para prácticas con datos compartidos.
+- Los servicios internos se comunican mediante `roles-service:8081`, `usuarios-service:8082` y `catalogos-service:8083`, aunque las API publicadas siguen en `localhost:8081..8084`.
+- El código Java (endpoints, modelos y lógica) no se modifica.
+- No es necesario Java ni Maven en Windows: la imagen se compila con Java 21 dentro de Docker.
+
+## Problemas habituales
 
 ```powershell
 docker info
-docker compose config
 docker compose ps
-docker compose logs --tail=100
-docker compose logs -f siniestros-service
+docker compose logs --tail=80
 ```
 
-Si aparece `dockerDesktopLinuxEngine`, inicia Docker Desktop y usa contenedores Linux. Si WSL2 está bloqueado en un computador del instituto, solicita habilitación o utiliza otro equipo autorizado.
+- Si Docker Engine no existe, abre Docker Desktop en modo Linux.
+- Si las dependencias Maven fallan, confirma acceso a Internet.
+- Si Atlas no responde, comprueba DNS SRV, acceso a Internet y las políticas de red permitidas. **No cambies el acceso ni las contraseñas de Atlas sin autorización.**
+- Si la conexión Atlas funciona pero Android no, verifica URLs Retrofit. `10.0.2.2` es el host para emulador Android; para teléfonos físicos la IP/red y políticas deben revisarse.
 
-Los volúmenes `mongodb-data`, `avatares-data` y `evidencias-data` son persistentes. No utilices `docker compose down -v` si quieres conservarlos.
+## Privacidad
 
-## Seguridad y límites
-
-- La conexión Atlas de los antiguos `application.properties` se ha eliminado de los cuatro servicios visibles. La conexión de Docker usa la variable `SPRING_MONGODB_URI` con un servidor MongoDB local. Por defecto emplea credenciales conocidas de demostración; puedes anularlas mediante `.env`.
-- El ZIP antiguo contiene una credencial que **debe revocarse por su propietario**; aunque lo retiramos de la rama visible, **sigue existiendo en versiones antiguas del historial Git**. Ver el Issue #2.
-- Los puertos se publican únicamente en `127.0.0.1`. La aplicación es una demostración académica y no incorpora seguridad de producción.
-- El workflow `docker-duoc.yml` realiza build y smoke REST. Una prueba verde no sustituye validar todos los flujos de negocio, permisos, persistencia y la integración con Android.
+`.env` almacena las URI originales en tu computador, sin Git. Cuídalo especialmente en equipos compartidos: evita dejarlo guardado allí después de la práctica. Las credenciales originales siguen siendo las mismas. El archivo ZIP histórico debe mantenerse privado porque contenía secretos.

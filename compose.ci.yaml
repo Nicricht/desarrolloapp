@@ -1,0 +1,42 @@
+# Configuracion exclusiva para pruebas GitHub Actions.
+# No utilizar como despliegue de Duoc: sustituye Atlas por MongoDB descartable.
+services:
+  mongodb:
+    image: mongo:7.0
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ci
+      MONGO_INITDB_ROOT_PASSWORD: ci-password-only
+    healthcheck:
+      test: ["CMD-SHELL", "mongosh --quiet -u ci -p ci-password-only --authenticationDatabase admin --eval 'db.adminCommand({ping:1}).ok' | grep -q 1"]
+      interval: 10s
+      timeout: 8s
+      retries: 25
+      start_period: 30s
+
+  roles-service:
+    environment:
+      SPRING_MONGODB_URI: mongodb://ci:ci-password-only@mongodb:27017/segurosbpo_roles?authSource=admin
+    depends_on:
+      mongodb:
+        condition: service_healthy
+
+  catalogos-service:
+    environment:
+      SPRING_MONGODB_URI: mongodb://ci:ci-password-only@mongodb:27017/segurosbpo_catalogos?authSource=admin
+    depends_on:
+      mongodb:
+        condition: service_healthy
+
+  usuarios-service:
+    environment:
+      SPRING_MONGODB_URI: mongodb://ci:ci-password-only@mongodb:27017/segurosbpo_usuarios?authSource=admin
+    depends_on:
+      mongodb:
+        condition: service_healthy
+
+  siniestros-service:
+    environment:
+      SPRING_MONGODB_URI: mongodb://ci:ci-password-only@mongodb:27017/segurosbpo_siniestros?authSource=admin
+    depends_on:
+      mongodb:
+        condition: service_healthy
