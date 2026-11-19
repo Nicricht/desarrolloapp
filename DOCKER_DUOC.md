@@ -1,48 +1,55 @@
-# Seguros BPO: ejecutar los cuatro microservicios con Docker en Duoc
+# Seguros BPO: ejecutar los cuatro microservicios en computadores de Duoc
 
-Este repositorio contenía únicamente `backend-seguros-bpo-main.zip`. Docker descomprime el ZIP **durante la construcción de las imágenes**; no es necesario extraerlo manualmente. Los cuatro servicios usan Spring Boot 4.1.2, Java 21 y MongoDB. La base MongoDB es **local al entorno Docker**, no Atlas.
+**Código fuente visible en GitHub**: cada microservicio tiene su propia carpeta, con Java, `pom.xml`, configuración y pruebas.
 
-## Requisitos del computador
+| Carpeta | Función | Puerto |
+| --- | --- | --- |
+| `roles-service/` | Roles | 8081 |
+| `usuarios-service/` | Usuarios, login y avatares | 8082 |
+| `catalogos-service/` | Compañías y tipos de siniestro | 8083 |
+| `siniestros-service/` | Siniestros, gestiones y evidencias | 8084 |
 
-- Docker Desktop con motor Linux activo y Docker Compose v2.
-- Permiso para usar Docker Desktop / WSL2 (en los computadores del instituto podría estar bloqueado).
-- Internet durante la primera construcción para descargar imágenes y dependencias Maven.
-- Puertos locales 8081, 8082, 8083, 8084 disponibles.
+`docker/Dockerfile` compila cada carpeta directamente, usando `SERVICE` para seleccionar el módulo; `compose.yaml` crea los cuatro servicios, más MongoDB 7 local. No hay que descargar ni extraer un ZIP dentro de Docker.
 
-No se necesita instalar Java, Maven o MongoDB en Windows.
+## Requisitos
 
-## Arranque
+- Docker Desktop con motor Linux iniciado y Docker Compose v2.
+- Permisos para ejecutar Docker Desktop / WSL2 en el equipo de Duoc.
+- Internet la primera vez para descargar las imágenes y las dependencias de Maven.
+- Puertos locales 8081–8084 libres.
 
-Abre PowerShell en la raíz del repositorio y ejecuta:
+No necesitas instalar Java, Maven ni MongoDB en Windows.
+
+## Arrancar en PowerShell
+
+En la raíz del repositorio, ejecuta:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\iniciar-duoc.ps1
 ```
 
-En el primer arranque, el script crea el archivo local `.env` con un usuario y una contraseña aleatoria. Ese archivo está excluido de Git. Luego ejecuta `docker compose up --build -d --wait` y muestra los contenedores. El primer build descarga y compila Java 21 / Spring Boot; puede requerir recursos y tiempo.
+El script genera `.env` con una contraseña MongoDB local aleatoria, valida Compose, compila y arranca los cinco contenedores. El archivo `.env` está excluido de Git.
 
-Verificar todas las API:
+Comprobar las cuatro API REST:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\probar-duoc.ps1
 ```
 
-Detener sin eliminar los datos:
+Detener sin perder las bases de datos ni los archivos adjuntos:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\detener-duoc.ps1
 ```
 
-## Direcciones
+## URLs de pruebas
 
-| Servicio | URL local de prueba |
-| --- | --- |
-| Roles | http://localhost:8081/api/roles |
-| Usuarios | http://localhost:8082/api/usuarios |
-| Catálogos | http://localhost:8083/api/companias |
-| Siniestros | http://localhost:8084/api/siniestros?sinAsignar=true |
+- Roles: http://localhost:8081/api/roles
+- Usuarios: http://localhost:8082/api/usuarios
+- Catálogos: http://localhost:8083/api/companias
+- Siniestros: http://localhost:8084/api/siniestros?sinAsignar=true
 
-En el emulador Android, reemplaza `localhost` por `10.0.2.2`. El frontend todavía debe adaptar las rutas y modelos a estas cuatro API.
+La aplicación Android todavía requiere adaptar su contrato Retrofit para este backend. En un emulador Android, `10.0.2.2` representa el host, pero las rutas también deben coincidir con las implementadas aquí.
 
 ## Diagnóstico
 
@@ -54,28 +61,13 @@ docker compose logs --tail=100
 docker compose logs -f siniestros-service
 ```
 
-Si Docker informa error `dockerDesktopLinuxEngine`, inicia Docker Desktop y habilita el motor Linux. Si no está disponible en un computador de Duoc, solicita habilitación o ejecuta el sistema en un equipo donde Docker funcione.
+Si aparece `dockerDesktopLinuxEngine`, inicia Docker Desktop y usa contenedores Linux. Si WSL2 está bloqueado en un computador del instituto, solicita habilitación o utiliza otro equipo autorizado.
 
-Si el puerto 8081 a 8084 está ocupado, detén el servicio que lo utiliza. No expongas los puertos del backend a Internet: este sistema usa cuentas académicas y no tiene autenticación de producción.
+Los volúmenes `mongodb-data`, `avatares-data` y `evidencias-data` son persistentes. No utilices `docker compose down -v` si quieres conservarlos.
 
-Los contenedores guardan tres volúmenes: `mongodb-data`, `avatares-data` y `evidencias-data`. No uses `docker compose down -v` salvo que quieras borrar los datos locales.
+## Seguridad y límites
 
-## Seguridad y limitaciones
-
-- Las propiedades del código archivado incluían una credencial MongoDB Atlas. **Esa credencial debe revocarse y el ZIP público debe sanearse**. Docker elimina esas líneas de propiedades **antes de compilar**, por lo que los JAR generados no llevan esa URI histórica. Esto no elimina la credencial del ZIP ni del historial Git.
-- El MongoDB de este Compose usa una cuenta local creada por el script. Su puerto no se expone al equipo ni a Internet.
-- Los cuatro servicios se inician en orden mediante dependencias y controles de salud (salida TCP / ping MongoDB).
-- `docker compose --wait` comprueba que los procesos arrancan; **no certifica los flujos completos de negocio**. Por eso se suministra una prueba REST básica y un workflow de CI.
-- Las credenciales demo de los usuarios y el HTTP local son exclusivamente para prácticas académicas.
-
-## Estructura
-
-```text
-backend-seguros-bpo-main.zip   <- código original
-docker/Dockerfile              <- extracción del ZIP y compilación multi-stage
-compose.yaml                   <- MongoDB + Roles + Usuarios + Catálogos + Siniestros
-scripts/iniciar-duoc.ps1       <- genera .env y ejecuta Compose
-scripts/probar-duoc.ps1        <- comprueba cuatro API
-scripts/detener-duoc.ps1       <- apaga sin borrar datos
-.github/workflows/docker-duoc.yml <- CI real de arranque y smoke
-```
+- La conexión Atlas de los antiguos `application.properties` se ha eliminado de los cuatro servicios visibles. La conexión de Docker usa la variable `SPRING_MONGODB_URI` con un servidor MongoDB local y una contraseña aleatoria.
+- El ZIP antiguo contiene una credencial que **debe revocarse por su propietario**; aunque lo retiramos de la rama visible, **sigue existiendo en versiones antiguas del historial Git**. Ver el Issue #2.
+- Los puertos se publican únicamente en `127.0.0.1`. La aplicación es una demostración académica y no incorpora seguridad de producción.
+- El workflow `docker-duoc.yml` realiza build y smoke REST. Una prueba verde no sustituye validar todos los flujos de negocio, permisos, persistencia y la integración con Android.

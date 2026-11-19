@@ -1,18 +1,16 @@
-# Cada build extrae el ZIP original y compila el microservicio solicitado.
-# No modifica el archivo histórico; elimina la conexión Atlas del JAR generado.
-FROM alpine:3.21 AS source
-RUN apk add --no-cache unzip
-WORKDIR /source
-COPY backend-seguros-bpo-main.zip /tmp/backend.zip
-RUN unzip -q /tmp/backend.zip -d /source \
-    && test -f /source/backend-seguros-bpo-main/roles-service/pom.xml \
-    && find /source/backend-seguros-bpo-main -name application.properties -exec sed -i '/^spring\.mongodb\.uri=/d' {} \;
-
+# Compilar directamente desde las cuatro carpetas visibles en GitHub.
 FROM maven:3.9-eclipse-temurin-21 AS build
 ARG SERVICE
 WORKDIR /workspace
-COPY --from=source /source/backend-seguros-bpo-main/ ./
+COPY roles-service/ ./roles-service/
+COPY usuarios-service/ ./usuarios-service/
+COPY catalogos-service/ ./catalogos-service/
+COPY siniestros-service/ ./siniestros-service/
 RUN case "$SERVICE" in roles-service|usuarios-service|catalogos-service|siniestros-service) ;; *) exit 2;; esac \
+    && if grep -R -q -E 'mongodb[+]srv://|abaylas_db_user' \
+         roles-service usuarios-service catalogos-service siniestros-service; then \
+         echo 'ERROR: fuente con URI de Atlas; detener construcción.' >&2; exit 3; \
+       fi \
     && mvn -B -ntp -f "$SERVICE/pom.xml" clean verify \
     && test -s "$SERVICE/target/$SERVICE-1.0.0.jar"
 
