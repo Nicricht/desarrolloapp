@@ -1,0 +1,47 @@
+name: Docker Duoc - cuatro microservicios
+
+on:
+  push:
+    paths:
+      - 'backend-seguros-bpo-main.zip'
+      - 'docker/**'
+      - 'compose.yaml'
+      - '.github/workflows/docker-duoc.yml'
+  pull_request:
+    paths:
+      - 'backend-seguros-bpo-main.zip'
+      - 'docker/**'
+      - 'compose.yaml'
+      - '.github/workflows/docker-duoc.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configurar MongoDB local de CI
+        run: |
+          printf 'MONGO_USER=segurosbpo\nMONGO_PASS=TEST0123456789ABCDEF1234567890\n' > .env
+      - name: Validar configuracion
+        run: docker compose config --quiet
+      - name: Compilar e iniciar los cinco contenedores
+        run: docker compose up --build -d --wait --wait-timeout 420
+      - name: Probar cuatro API
+        run: |
+          set -euo pipefail
+          curl --fail --show-error --silent http://127.0.0.1:8081/api/roles >/dev/null
+          curl --fail --show-error --silent http://127.0.0.1:8082/api/usuarios >/dev/null
+          curl --fail --show-error --silent http://127.0.0.1:8083/api/companias >/dev/null
+          curl --fail --show-error --silent 'http://127.0.0.1:8084/api/siniestros?sinAsignar=true' >/dev/null
+      - name: Informacion de diagnostico ante errores
+        if: failure()
+        run: |
+          docker compose ps || true
+          docker compose logs --tail=120 || true
+      - name: Detener contenedores
+        if: always()
+        run: docker compose down --remove-orphans || true

@@ -1,0 +1,119 @@
+name: seguros-bpo-duoc
+
+services:
+  mongodb:
+    image: mongo:7.0
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER:?Usa scripts/iniciar-duoc.ps1 para generar .env}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASS:?Usa scripts/iniciar-duoc.ps1 para generar .env}
+    volumes:
+      - mongodb-data:/data/db
+    healthcheck:
+      test: ["CMD-SHELL", "mongosh --quiet -u \"$$MONGO_INITDB_ROOT_USERNAME\" -p \"$$MONGO_INITDB_ROOT_PASSWORD\" --authenticationDatabase admin --eval 'db.adminCommand({ping:1}).ok' | grep -q 1"]
+      interval: 10s
+      timeout: 8s
+      retries: 25
+      start_period: 30s
+
+  roles-service:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      args:
+        SERVICE: roles-service
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8081:8081"
+    environment:
+      SPRING_MONGODB_URI: "mongodb://${MONGO_USER}:${MONGO_PASS}@mongodb:27017/segurosbpo_roles?authSource=admin"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "bash", "-c", "echo > /dev/tcp/127.0.0.1/8081"]
+      interval: 10s
+      timeout: 5s
+      retries: 24
+      start_period: 40s
+
+  catalogos-service:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      args:
+        SERVICE: catalogos-service
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8083:8083"
+    environment:
+      SPRING_MONGODB_URI: "mongodb://${MONGO_USER}:${MONGO_PASS}@mongodb:27017/segurosbpo_catalogos?authSource=admin"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "bash", "-c", "echo > /dev/tcp/127.0.0.1/8083"]
+      interval: 10s
+      timeout: 5s
+      retries: 24
+      start_period: 40s
+
+  usuarios-service:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      args:
+        SERVICE: usuarios-service
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8082:8082"
+    environment:
+      SPRING_MONGODB_URI: "mongodb://${MONGO_USER}:${MONGO_PASS}@mongodb:27017/segurosbpo_usuarios?authSource=admin"
+      ROLES_SERVICE_URL: "http://roles-service:8081"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      roles-service:
+        condition: service_healthy
+    volumes:
+      - avatares-data:/app/uploads/avatares
+    healthcheck:
+      test: ["CMD", "bash", "-c", "echo > /dev/tcp/127.0.0.1/8082"]
+      interval: 10s
+      timeout: 5s
+      retries: 24
+      start_period: 40s
+
+  siniestros-service:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      args:
+        SERVICE: siniestros-service
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8084:8084"
+    environment:
+      SPRING_MONGODB_URI: "mongodb://${MONGO_USER}:${MONGO_PASS}@mongodb:27017/segurosbpo_siniestros?authSource=admin"
+      CATALOGOS_SERVICE_URL: "http://catalogos-service:8083"
+      USUARIOS_SERVICE_URL: "http://usuarios-service:8082"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      catalogos-service:
+        condition: service_healthy
+      usuarios-service:
+        condition: service_healthy
+    volumes:
+      - evidencias-data:/app/uploads/evidencias
+    healthcheck:
+      test: ["CMD", "bash", "-c", "echo > /dev/tcp/127.0.0.1/8084"]
+      interval: 10s
+      timeout: 5s
+      retries: 24
+      start_period: 40s
+
+volumes:
+  mongodb-data:
+  avatares-data:
+  evidencias-data:
